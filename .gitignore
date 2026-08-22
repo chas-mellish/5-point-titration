@@ -1,0 +1,47 @@
+# === Build Artifacts ===
+*.o
+*.exe
+*.class
+*.dll
+*.so
+
+# === Python (if using Python for new code) ===
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# === Environment & Secrets ===
+.env
+.env.local
+*.pem
+*.key
+config/secrets.json
+
+# === OS Files ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === IDE / Editor ===
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# === Logs & Temp ===
+*.log
+tmp/
+temp/
+
+# === Large Data Files (use Git LFS instead) ===
+# Uncomment if you have large datasets:
+# *.dat
+# *.csv
+# *.h5
+
+# === Thesis Documents (if sensitive) ===
+# Uncomment to prevent committing thesis PDFs:
+# docs/thesis-reference/*.pdf
