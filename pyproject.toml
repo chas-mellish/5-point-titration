@@ -22,9 +22,9 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests"]              # Changed from src/tests/
 python_files = ["test_*.py"]
-addopts = "-v --cov=titration --cov-report=html"
+addopts = "-v --cov=src/titration --cov-report=html"
 
 [tool.coverage.run]
 source = ["src/titration"]
