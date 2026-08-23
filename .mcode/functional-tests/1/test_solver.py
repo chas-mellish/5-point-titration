@@ -1,7 +1,6 @@
 """Functional tests for titration.solver and titration.core — the solver pipeline and orchestrator."""
 
 import numpy as np
-import pytest
 
 
 class TestRunTitrationThesisDefaults:
