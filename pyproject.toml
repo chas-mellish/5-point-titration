@@ -21,6 +21,9 @@ dev = [
     "matplotlib>=3.8.0",
 ]
 
+[project.scripts]
+titration = "titration.cli:main"
+
 [tool.coverage.run]
 source = ["src/titration"]
 
