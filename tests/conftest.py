@@ -1,17 +1,18 @@
+"""Shared fixtures for the 5-point titration test suite."""
+
 import pytest
-import numpy as np
+
+from titration.chemistry import calculate_pk_constants
+from titration.constants import THESIS_DEFAULTS
+
 
 @pytest.fixture
-def sample_ph_data():
-    """Fixture: Sample pH titration curve data"""
-    return np.array([2.1, 2.5, 3.2, 4.1, 5.8, 7.2, 8.9, 9.5])
+def thesis_defaults():
+    """Return the canonical thesis default TitrationInput."""
+    return THESIS_DEFAULTS
+
 
 @pytest.fixture
-def sample_volume_data():
-    """Fixture: Corresponding titrant volumes (mL)"""
-    return np.array([0.0, 2.5, 5.0, 7.5, 10.0, 12.5, 15.0, 17.5])
-
-@pytest.fixture
-def expected_alkalinity():
-    """Fixture: Expected alkalinity result (mg/L as CaCO3)"""
-    return 125.5  # Example value from thesis
+def thesis_pk_constants():
+    """Return pK constants computed at thesis conditions (21 C, TDS=3300, dil=5)."""
+    return calculate_pk_constants(21.0, 3300.0, 5.0)
