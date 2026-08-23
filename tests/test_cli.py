@@ -91,3 +91,8 @@ class TestMain:
     def test_main_invalid_arg_exits(self):
         with pytest.raises(SystemExit):
             main(["--invalid-flag"])
+
+    def test_main_invalid_volume_exits(self):
+        with pytest.raises(SystemExit) as exc_info:
+            main(["--sample-volume-undiluted", "-1.0"])
+        assert exc_info.value.code == 1
