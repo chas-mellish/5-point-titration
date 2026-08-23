@@ -14,6 +14,10 @@ from .constants import ACETIC_ACID_FACTOR, CACO3_FACTOR
 from .models import TitrationInput, TitrationResult
 
 
+def _to_mg_per_l(molar_qty, factor, vsdil, dil):
+    return molar_qty / vsdil * factor * dil
+
+
 def run_solver(inp: TitrationInput) -> TitrationResult:
     if inp.sample_volume_undiluted <= 0:
         raise ValueError("sample_volume_undiluted must be positive")
@@ -81,8 +85,8 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
             raise ValueError("b2 is zero — degenerate pH combination in Ct2 computation")
 
         m_ct1 = a1 / b1
-        ct1 = m_ct1 / vsdil * CACO3_FACTOR * dil
-        ct2 = (a2 / b2) / vsdil * CACO3_FACTOR * dil
+        ct1 = _to_mg_per_l(m_ct1, CACO3_FACTOR, vsdil, dil)
+        ct2 = _to_mg_per_l(a2 / b2, CACO3_FACTOR, vsdil, dil)
         ct_comp = ct1 - ct2
         return m_ct1, ct1, ct2, ct_comp
 
@@ -104,7 +108,7 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
 
     # Initial At1 and ratio for direction check
     m_at1 = _compute_m_at(ph3, ph4, vx3, vx4, m_ct1)
-    at1_initial = m_at1 / vsdil * ACETIC_ACID_FACTOR * dil
+    at1_initial = _to_mg_per_l(m_at1, ACETIC_ACID_FACTOR, vsdil, dil)
     ct_at_ratio = at1_initial / ct1
 
     # Determine correction direction
@@ -130,15 +134,15 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
 
     # Final At calculations using converged MCt1 and adjusted pH values
     m_at1 = _compute_m_at(ph3, ph4, vx3, vx4, m_ct1)
-    at1 = m_at1 / vsdil * ACETIC_ACID_FACTOR * dil
+    at1 = _to_mg_per_l(m_at1, ACETIC_ACID_FACTOR, vsdil, dil)
 
     m_at2 = _compute_m_at(ph1, ph4, vx1, vx4, m_ct1)
-    at2 = m_at2 / vsdil * ACETIC_ACID_FACTOR * dil
+    at2 = _to_mg_per_l(m_at2, ACETIC_ACID_FACTOR, vsdil, dil)
 
     # H2CO3* alkalinity of the undiluted sample
     m_h2co3_alk_sam = m_ct1 * (per_hco3(ph0, pk11, pk22) + 2.0 * per_co3(ph0, pk11, pk22))
     h2co3_alk_sam = (
-        m_h2co3_alk_sam / vsdil * dil * CACO3_FACTOR
+        _to_mg_per_l(m_h2co3_alk_sam, CACO3_FACTOR, vsdil, dil)
         + (10.0 ** (ph0 - 14.0) - 10.0 ** (-ph0) / 10.0 ** logf1) * CACO3_FACTOR
     )
 
