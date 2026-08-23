@@ -1,5 +1,7 @@
 """Functional tests for titration.solver and titration.core — the solver pipeline and orchestrator."""
 
+import dataclasses
+
 import numpy as np
 
 
@@ -78,61 +80,33 @@ class TestRunTitrationWithNitrogenPhosphorus:
     """Verify run_titration with nitrogen and phosphorus corrections."""
 
     def test_with_nitrogen_converges(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=3300.0,
-            inorganic_nitrogen=100.0, inorganic_phosphorus=0.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, inorganic_nitrogen=100.0)
         result = run_titration(inp)
         assert result.convergence_status == "converged"
 
     def test_with_phosphorus_converges(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=3300.0,
-            inorganic_nitrogen=0.0, inorganic_phosphorus=50.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, inorganic_phosphorus=50.0)
         result = run_titration(inp)
         assert result.convergence_status == "converged"
 
     def test_with_both_np_converges(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=3300.0,
-            inorganic_nitrogen=100.0, inorganic_phosphorus=50.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, inorganic_nitrogen=100.0, inorganic_phosphorus=50.0)
         result = run_titration(inp)
         assert result.convergence_status == "converged"
         np.testing.assert_allclose(result.h2co3_alkalinity, 1822.90, rtol=0.01)
 
     def test_nitrogen_affects_alkalinity(self):
-        from titration import run_titration, TitrationInput, THESIS_DEFAULTS
+        from titration import run_titration, THESIS_DEFAULTS
 
         result_no_n = run_titration(THESIS_DEFAULTS)
 
-        inp_with_n = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=3300.0,
-            inorganic_nitrogen=100.0,
-        )
+        inp_with_n = dataclasses.replace(THESIS_DEFAULTS, inorganic_nitrogen=100.0)
         result_with_n = run_titration(inp_with_n)
         assert result_no_n.h2co3_alkalinity != result_with_n.h2co3_alkalinity
 
@@ -141,47 +115,26 @@ class TestRunTitrationTemperatureVariation:
     """Verify run_titration at different temperatures."""
 
     def test_higher_temperature_converges(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=35.0, tds=3300.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, temperature=35.0)
         result = run_titration(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0.0
 
     def test_lower_temperature_converges(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=10.0, tds=3300.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, temperature=10.0)
         result = run_titration(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0.0
 
     def test_temperature_affects_results(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        def make_input(temp):
-            return TitrationInput(
-                ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-                vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-                titrant_normality=0.0728,
-                sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-                temperature=temp, tds=3300.0,
-            )
-
-        r_10 = run_titration(make_input(10.0))
-        r_35 = run_titration(make_input(35.0))
+        r_10 = run_titration(dataclasses.replace(THESIS_DEFAULTS, temperature=10.0))
+        r_35 = run_titration(dataclasses.replace(THESIS_DEFAULTS, temperature=35.0))
         # Different temperatures should produce different alkalinity values
         assert r_10.h2co3_alkalinity != r_35.h2co3_alkalinity
 
@@ -205,15 +158,9 @@ class TestSolverEdgeCases:
         assert result.convergence_status in ("exceeded_max_iterations", "ratio_too_high")
 
     def test_high_tds_converges(self):
-        from titration import run_titration, TitrationInput
+        from titration import run_titration, THESIS_DEFAULTS
 
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=10000.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, tds=10000.0)
         result = run_titration(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0.0
