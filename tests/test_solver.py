@@ -82,15 +82,8 @@ class TestEdgeCaseLowTDS:
 
     def test_low_tds_matches_tds21(self):
         """TDS=15 should be clamped to 21, so results must match TDS=21."""
-        common = dict(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=50.0, sample_volume_diluted=50.0,
-            temperature=21.0,
-        )
-        r15 = run_solver(TitrationInput(**common, tds=15.0))
-        r21 = run_solver(TitrationInput(**common, tds=21.0))
+        r15 = run_solver(dataclasses.replace(THESIS_DEFAULTS, sample_volume_undiluted=50.0, tds=15.0))
+        r21 = run_solver(dataclasses.replace(THESIS_DEFAULTS, sample_volume_undiluted=50.0, tds=21.0))
         np.testing.assert_allclose(
             r15.h2co3_alkalinity, r21.h2co3_alkalinity, rtol=1e-12,
         )
@@ -115,15 +108,8 @@ class TestExtremeTemperature:
 
     def test_temperature_affects_results(self):
         """Different temperatures should produce different alkalinity values."""
-        common = dict(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            tds=3300.0,
-        )
-        r_cold = run_solver(TitrationInput(**common, temperature=5.0))
-        r_warm = run_solver(TitrationInput(**common, temperature=40.0))
+        r_cold = run_solver(dataclasses.replace(THESIS_DEFAULTS, temperature=5.0))
+        r_warm = run_solver(dataclasses.replace(THESIS_DEFAULTS, temperature=40.0))
         assert r_cold.h2co3_alkalinity != r_warm.h2co3_alkalinity
 
 
