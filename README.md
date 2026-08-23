@@ -6,8 +6,8 @@ This repository contains the listing of the source code for the source code file
 The program was coded using Turbo Pascal Ver 4.0. It allows the calculation of H2C03*alkalinity, SCFA (as AT) and systematic pH measurement error from the data collected in the 5 pH point titration procedure. (For 5 pH point titration procedure, see Appendix V).
 
 # Repository Analysis
-5-point-titration
-Application Type
+## 5-point-titration
+### Application Type
 
 Scientific computing library — a pure computational package with no web UI, database, or external service dependencies. The original Pascal program was a DOS text-mode interactive application (using Turbo Pascal's crt unit for screen drawing); the Python modernization strips the UI layer and exposes the calculation algorithms as a Python package with an optional CLI.
 Origin and Domain Context
@@ -51,7 +51,7 @@ Repository Structure
     ├── test_titration.py                 # Placeholder test classes (all pass)
     └── fixtures/thesis_data.csv          # 8-row reference dataset (pH, volume, temp)
 
-Legacy Pascal Source Analysis
+### Legacy Pascal Source Analysis
 
 File: docs/thesis-reference/5_point_titration_code.pas
 
@@ -100,7 +100,7 @@ src/titration/core.py — Contains three stub functions:
     parse_pascal_equivalent() — Returns a status dict, no actual parsing
 
 src/titration/__init__.py — Exports the three stubs, version 0.1.0.
-Build and Dependencies
+# Build and Dependencies
 
 pyproject.toml: setuptools-based build, Python ≥ 3.10. Core dependencies: numpy ≥ 1.26.0, scipy ≥ 1.12.0, pandas ≥ 2.1.0. Dev dependencies: pytest ≥ 7.4.0, pytest-cov ≥ 4.1.0, matplotlib ≥ 3.8.0.
 
@@ -108,7 +108,7 @@ requirements.txt: Adds seaborn ≥ 0.13.0 and tqdm ≥ 4.66.0 beyond what pyproj
 CI Pipeline
 
 .github/workflows/python-tests.yml: Runs on push/PR to main. Tests across Python 3.10, 3.11, 3.12. Installs via pip install -r requirements.txt then pip install -e ".[dev]". Sets PYTHONPATH=src. Runs pytest tests/ -v (coverage temporarily disabled). Codecov upload step present but effectively no-op since coverage XML is not generated.
-Test Infrastructure
+# Test Infrastructure
 
     tests/conftest.py: Defines shared fixtures (sample_ph_data, sample_volume_data, expected_alkalinity) — note these are generic titration curve data, not the specific 5-point method inputs
     tests/test_titration.py: Two test classes with all pass bodies — TestTitrationAlgorithms and TestDataLoading
@@ -140,7 +140,7 @@ src/titration/
 ├── core.py           # High-level orchestration: run_titration(input) → result
 └── cli.py            # argparse CLI entry point
 
-Module Responsibilities
+## Module Responsibilities
 
 models.py — Defines the two primary data structures that replace the Pascal program's 30+ global variables:
 
@@ -226,7 +226,35 @@ Post-Modernization Codebase Structure
 ├── .mcode/functional-tests/             # Functional test artifacts from automated testing
 └── docs/thesis-reference/               # Original Pascal source and draft translations
 
-Technology Choices
+# Architecture
+## Overview
+graph TD
+    subgraph Legend
+        L1[Modified]:::modified
+        L2[Unchanged]:::unchanged
+    end
+
+    CLI["cli.py\n(CLI Entry Point)"]:::modified
+    CORE["core.py\n(Orchestrator)"]:::unchanged
+    SOLVER["solver.py\n(Iterative Solver)"]:::modified
+    CHEM["chemistry.py\n(Thermodynamics)"]:::unchanged
+    MODELS["models.py\n(Data Structures)"]:::unchanged
+    CONST["constants.py\n(Defaults & Factors)"]:::unchanged
+
+    CLI --> CORE
+    CORE --> SOLVER
+    SOLVER --> CHEM
+    SOLVER --> MODELS
+    CORE --> MODELS
+    CLI --> MODELS
+    SOLVER --> CONST
+    CONST --> MODELS
+
+    classDef modified fill:#ffd700,stroke:#333,color:#000
+    classDef unchanged fill:#f0f0f0,stroke:#333,color:#000
+
+
+## Technology Choices
 Component	Choice	Rationale
 Python ≥ 3.10	Language	Dataclass features, union type syntax, match statements
 NumPy	Math library	Scalar-compatible functions, future vectorization path
