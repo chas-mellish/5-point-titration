@@ -2,10 +2,11 @@
 
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
-WORKING_DIR = "/home/charles/.local/share/modelcode/workspace/jobs/ca6de331-e0eb-48d0-9045-61a671127760/workspace/5-point-titration"
+WORKING_DIR = Path(__file__).resolve().parents[3]
 
 
 def run_cli(*args, input_text=None):
