@@ -78,7 +78,11 @@ def main(argv: list[str] | None = None) -> None:
         inorganic_phosphorus=args.inorganic_phosphorus,
     )
 
-    result = run_titration(inp)
+    try:
+        result = run_titration(inp)
+    except ValueError as exc:
+        sys.stderr.write(f"titration: error: {exc}\n")
+        sys.exit(1)
     sys.stdout.write(_format_results(result))
 
 
