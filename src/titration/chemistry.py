@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+from .constants import NITROGEN_FACTOR, PHOSPHORUS_FACTOR
+
 
 def calculate_ionic_strength(tds: float, dil: float) -> float:
     # Pascal: nue(TDS,dil) -- mue := 0.000025 * (TDS/dil - 20)
@@ -140,7 +142,7 @@ def m_nh3(
     vsdil: float,
     pknn: float,
 ) -> float:
-    return nt / (14000.0 * dil) * vsdil * (per(ph_f, pknn) - per(ph_s, pknn))
+    return nt / (NITROGEN_FACTOR * dil) * vsdil * (per(ph_f, pknn) - per(ph_s, pknn))
 
 
 def m_hpo4(
@@ -151,4 +153,4 @@ def m_hpo4(
     vsdil: float,
     pkpp: float,
 ) -> float:
-    return pt / (31000.0 * dil) * vsdil * (per(ph_f, pkpp) - per(ph_s, pkpp))
+    return pt / (PHOSPHORUS_FACTOR * dil) * vsdil * (per(ph_f, pkpp) - per(ph_s, pkpp))

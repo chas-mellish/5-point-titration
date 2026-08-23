@@ -1,6 +1,7 @@
 """5-Point Titration Analysis Package"""
 
 __version__ = "0.1.0"
+__author__ = "Charles Mellish"
 
 from .core import run_titration
 from .constants import THESIS_DEFAULTS

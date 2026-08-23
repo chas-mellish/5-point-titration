@@ -21,13 +21,7 @@ class TestParametricTemperature:
     @pytest.mark.parametrize("temperature", [5, 10, 15, 20, 25, 30, 35, 40])
     def test_solver_converges_at_temperature(self, temperature):
         """Solver should converge for each reasonable temperature value."""
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=float(temperature), tds=3300.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, temperature=float(temperature))
         result = run_solver(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0
@@ -39,13 +33,7 @@ class TestParametricTDS:
     @pytest.mark.parametrize("tds", [500, 1000, 2000, 3300, 5000, 8000])
     def test_solver_converges_at_tds(self, tds):
         """Solver should converge for each TDS value."""
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=float(tds),
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, tds=float(tds))
         result = run_solver(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0
@@ -60,13 +48,7 @@ class TestBoundaryConditions:
 
     def test_very_high_tds(self):
         """TDS=10000 should still converge and produce finite results."""
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=10000.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, tds=10000.0)
         result = run_solver(inp)
         assert result.convergence_status == "converged"
         assert np.isfinite(result.h2co3_alkalinity)

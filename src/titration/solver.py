@@ -15,6 +15,11 @@ from .models import TitrationInput, TitrationResult
 
 
 def run_solver(inp: TitrationInput) -> TitrationResult:
+    if inp.sample_volume_undiluted <= 0:
+        raise ValueError("sample_volume_undiluted must be positive")
+    if inp.sample_volume_diluted <= 0:
+        raise ValueError("sample_volume_diluted must be positive")
+
     dil = inp.sample_volume_diluted / inp.sample_volume_undiluted
     vsdil = inp.sample_volume_diluted
     ca = inp.titrant_normality
@@ -36,47 +41,44 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
     ph3 = inp.ph3
     ph4 = inp.ph4
 
+    if ph3 == ph4:
+        raise ValueError("ph3 and ph4 must differ (division by d_hac_alk(ph3, ph4) is zero)")
+    if ph1 == ph4:
+        raise ValueError("ph1 and ph4 must differ (division by d_hac_alk(ph1, ph4) is zero)")
+
     vx1 = inp.vx1
     vx2 = inp.vx2
     vx3 = inp.vx3
     vx4 = inp.vx4
 
     def _atctcalculation():
-        ratio_12_34 = d_hac_alk(ph1, ph2, pkaa) / d_hac_alk(ph3, ph4, pkaa)
-        a1 = (
-            (vx2 - vx1) * ca
-            - m_h2o(vx1, vx2, ph1, ph2, vsdil, logf1)
-            - m_nh3(ph1, ph2, nt, dil, vsdil, pknn)
-            - m_hpo4(ph1, ph2, pt, dil, vsdil, pkpp)
-            + ratio_12_34
-            * (
-                m_h2o(vx3, vx4, ph3, ph4, vsdil, logf1)
-                + m_nh3(ph3, ph4, nt, dil, vsdil, pknn)
-                + m_hpo4(ph3, ph4, pt, dil, vsdil, pkpp)
-                - (vx4 - vx3) * ca
+        def _compute_ct_pair(ph_a, ph_b, vx_a, vx_b):
+            ratio = d_hac_alk(ph_a, ph_b, pkaa) / d_hac_alk(ph3, ph4, pkaa)
+            a = (
+                (vx_b - vx_a) * ca
+                - m_h2o(vx_a, vx_b, ph_a, ph_b, vsdil, logf1)
+                - m_nh3(ph_a, ph_b, nt, dil, vsdil, pknn)
+                - m_hpo4(ph_a, ph_b, pt, dil, vsdil, pkpp)
+                + ratio
+                * (
+                    m_h2o(vx3, vx4, ph3, ph4, vsdil, logf1)
+                    + m_nh3(ph3, ph4, nt, dil, vsdil, pknn)
+                    + m_hpo4(ph3, ph4, pt, dil, vsdil, pkpp)
+                    - (vx4 - vx3) * ca
+                )
             )
-        )
-        b1 = d_h2co3_alk(ph1, ph2, pk11, pk22) - ratio_12_34 * d_h2co3_alk(
-            ph3, ph4, pk11, pk22
-        )
+            b = d_h2co3_alk(ph_a, ph_b, pk11, pk22) - ratio * d_h2co3_alk(
+                ph3, ph4, pk11, pk22
+            )
+            return a, b
 
-        ratio_14_34 = d_hac_alk(ph1, ph4, pkaa) / d_hac_alk(ph3, ph4, pkaa)
-        a2 = (
-            (vx4 - vx1) * ca
-            - m_h2o(vx1, vx4, ph1, ph4, vsdil, logf1)
-            - m_nh3(ph1, ph4, nt, dil, vsdil, pknn)
-            - m_hpo4(ph1, ph4, pt, dil, vsdil, pkpp)
-            + ratio_14_34
-            * (
-                m_h2o(vx3, vx4, ph3, ph4, vsdil, logf1)
-                + m_nh3(ph3, ph4, nt, dil, vsdil, pknn)
-                + m_hpo4(ph3, ph4, pt, dil, vsdil, pkpp)
-                - (vx4 - vx3) * ca
-            )
-        )
-        b2 = d_h2co3_alk(ph1, ph4, pk11, pk22) - ratio_14_34 * d_h2co3_alk(
-            ph3, ph4, pk11, pk22
-        )
+        a1, b1 = _compute_ct_pair(ph1, ph2, vx1, vx2)
+        a2, b2 = _compute_ct_pair(ph1, ph4, vx1, vx4)
+
+        if b1 == 0.0:
+            raise ValueError("b1 is zero — degenerate pH combination in Ct1 computation")
+        if b2 == 0.0:
+            raise ValueError("b2 is zero — degenerate pH combination in Ct2 computation")
 
         m_ct1 = a1 / b1
         ct1 = m_ct1 / vsdil * CACO3_FACTOR * dil
@@ -91,14 +93,17 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
 
     m_ct1, ct1, ct2, ct_comp = _atctcalculation()
 
+    def _compute_m_at(ph_a, ph_b, vx_a, vx_b, m_ct1_val):
+        return (1.0 / d_hac_alk(ph_a, ph_b, pkaa)) * (
+            (vx_b - vx_a) * ca
+            - m_ct1_val * d_h2co3_alk(ph_a, ph_b, pk11, pk22)
+            - m_nh3(ph_a, ph_b, nt, dil, vsdil, pknn)
+            - m_hpo4(ph_a, ph_b, pt, dil, vsdil, pkpp)
+            - m_h2o(vx_a, vx_b, ph_a, ph_b, vsdil, logf1)
+        )
+
     # Initial At1 and ratio for direction check
-    m_at1 = (1.0 / d_hac_alk(ph3, ph4, pkaa)) * (
-        (vx4 - vx3) * ca
-        - m_ct1 * d_h2co3_alk(ph3, ph4, pk11, pk22)
-        - m_nh3(ph3, ph4, nt, dil, vsdil, pknn)
-        - m_hpo4(ph3, ph4, pt, dil, vsdil, pkpp)
-        - m_h2o(vx3, vx4, ph3, ph4, vsdil, logf1)
-    )
+    m_at1 = _compute_m_at(ph3, ph4, vx3, vx4, m_ct1)
     at1_initial = m_at1 / vsdil * ACETIC_ACID_FACTOR * dil
     ct_at_ratio = at1_initial / ct1
 
@@ -107,26 +112,11 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
         convergence_status = "ratio_too_high"
     elif ct_comp == 0.0:
         convergence_status = "converged"
-    elif ct_comp > 0.0:
-        # Case 'a': need negative pH correction
-        ph_corr = -0.01
-        while not (ct_comp < 0.0 or counter > 19):
-            del_ph -= 0.01
-            ph0 += ph_corr
-            ph1 += ph_corr
-            ph2 += ph_corr
-            ph3 += ph_corr
-            ph4 += ph_corr
-            counter += 1
-            m_ct1, ct1, ct2, ct_comp = _atctcalculation()
-        convergence_status = (
-            "exceeded_max_iterations" if counter > 19 else "converged"
-        )
     else:
-        # Case 'b': need positive pH correction
-        ph_corr = 0.01
-        while not (ct_comp > 0.0 or counter > 19):
-            del_ph += 0.01
+        ph_corr = -0.01 if ct_comp > 0.0 else 0.01
+        initial_sign = 1.0 if ct_comp > 0.0 else -1.0
+        while not (ct_comp * initial_sign < 0.0 or counter > 19):
+            del_ph += ph_corr
             ph0 += ph_corr
             ph1 += ph_corr
             ph2 += ph_corr
@@ -139,22 +129,10 @@ def run_solver(inp: TitrationInput) -> TitrationResult:
         )
 
     # Final At calculations using converged MCt1 and adjusted pH values
-    m_at1 = (1.0 / d_hac_alk(ph3, ph4, pkaa)) * (
-        (vx4 - vx3) * ca
-        - m_ct1 * d_h2co3_alk(ph3, ph4, pk11, pk22)
-        - m_nh3(ph3, ph4, nt, dil, vsdil, pknn)
-        - m_hpo4(ph3, ph4, pt, dil, vsdil, pkpp)
-        - m_h2o(vx3, vx4, ph3, ph4, vsdil, logf1)
-    )
+    m_at1 = _compute_m_at(ph3, ph4, vx3, vx4, m_ct1)
     at1 = m_at1 / vsdil * ACETIC_ACID_FACTOR * dil
 
-    m_at2 = (1.0 / d_hac_alk(ph1, ph4, pkaa)) * (
-        (vx4 - vx1) * ca
-        - m_ct1 * d_h2co3_alk(ph1, ph4, pk11, pk22)
-        - m_nh3(ph1, ph4, nt, dil, vsdil, pknn)
-        - m_hpo4(ph1, ph4, pt, dil, vsdil, pkpp)
-        - m_h2o(vx1, vx4, ph1, ph4, vsdil, logf1)
-    )
+    m_at2 = _compute_m_at(ph1, ph4, vx1, vx4, m_ct1)
     at2 = m_at2 / vsdil * ACETIC_ACID_FACTOR * dil
 
     # H2CO3* alkalinity of the undiluted sample

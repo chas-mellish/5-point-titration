@@ -3,13 +3,6 @@
 import pytest
 
 from titration.chemistry import calculate_pk_constants
-from titration.constants import THESIS_DEFAULTS
-
-
-@pytest.fixture
-def thesis_defaults():
-    """Return the canonical thesis default TitrationInput."""
-    return THESIS_DEFAULTS
 
 
 @pytest.fixture

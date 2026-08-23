@@ -1,5 +1,7 @@
 """Integration tests for titration.solver — run_solver pipeline."""
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -56,19 +58,8 @@ class TestZeroNitrogenPhosphorus:
 
     def test_results_unchanged_with_explicit_zero_nutrients(self):
         """Explicit zero Nt/Pt should match the default (which is also zero)."""
-        inp = TitrationInput(
-            ph0=THESIS_DEFAULTS.ph0, ph1=THESIS_DEFAULTS.ph1,
-            ph2=THESIS_DEFAULTS.ph2, ph3=THESIS_DEFAULTS.ph3,
-            ph4=THESIS_DEFAULTS.ph4,
-            vx1=THESIS_DEFAULTS.vx1, vx2=THESIS_DEFAULTS.vx2,
-            vx3=THESIS_DEFAULTS.vx3, vx4=THESIS_DEFAULTS.vx4,
-            titrant_normality=THESIS_DEFAULTS.titrant_normality,
-            sample_volume_undiluted=THESIS_DEFAULTS.sample_volume_undiluted,
-            sample_volume_diluted=THESIS_DEFAULTS.sample_volume_diluted,
-            temperature=THESIS_DEFAULTS.temperature,
-            tds=THESIS_DEFAULTS.tds,
-            inorganic_nitrogen=0.0,
-            inorganic_phosphorus=0.0,
+        inp = dataclasses.replace(
+            THESIS_DEFAULTS, inorganic_nitrogen=0.0, inorganic_phosphorus=0.0,
         )
         r1 = run_solver(THESIS_DEFAULTS)
         r2 = run_solver(inp)
@@ -82,12 +73,8 @@ class TestEdgeCaseLowTDS:
 
     def test_low_tds_undiluted_converges(self):
         """TDS=15 with dil=1 (undiluted) should converge without error."""
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=50.0, sample_volume_diluted=50.0,
-            temperature=21.0, tds=15.0,
+        inp = dataclasses.replace(
+            THESIS_DEFAULTS, sample_volume_undiluted=50.0, tds=15.0,
         )
         result = run_solver(inp)
         assert result.convergence_status == "converged"
@@ -114,26 +101,14 @@ class TestExtremeTemperature:
 
     def test_cold_temperature_converges(self):
         """Temperature=5 C (cold water) should converge."""
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=5.0, tds=3300.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, temperature=5.0)
         result = run_solver(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0
 
     def test_warm_temperature_converges(self):
         """Temperature=40 C (warm water) should converge."""
-        inp = TitrationInput(
-            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
-            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
-            titrant_normality=0.0728,
-            sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
-            temperature=40.0, tds=3300.0,
-        )
+        inp = dataclasses.replace(THESIS_DEFAULTS, temperature=40.0)
         result = run_solver(inp)
         assert result.convergence_status == "converged"
         assert result.h2co3_alkalinity > 0
@@ -150,3 +125,69 @@ class TestExtremeTemperature:
         r_cold = run_solver(TitrationInput(**common, temperature=5.0))
         r_warm = run_solver(TitrationInput(**common, temperature=40.0))
         assert r_cold.h2co3_alkalinity != r_warm.h2co3_alkalinity
+
+
+class TestAdversarialInputs:
+    """Verify division-by-zero guards with adversarial pH values."""
+
+    _base = dict(
+        vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
+        titrant_normality=0.0728,
+        sample_volume_undiluted=10.0, sample_volume_diluted=50.0,
+        temperature=21.0, tds=3300.0,
+    )
+
+    def test_identical_ph3_ph4_raises(self):
+        """ph3 == ph4 causes d_hac_alk denominator to be zero."""
+        inp = TitrationInput(
+            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=5.18,
+            **self._base,
+        )
+        with pytest.raises(ValueError, match="ph3 and ph4 must differ"):
+            run_solver(inp)
+
+    def test_identical_ph1_ph4_raises(self):
+        """ph1 == ph4 causes d_hac_alk(ph1, ph4) denominator to be zero."""
+        inp = TitrationInput(
+            ph0=7.36, ph1=4.29, ph2=5.95, ph3=5.18, ph4=4.29,
+            **self._base,
+        )
+        with pytest.raises(ValueError, match="ph1 and ph4 must differ"):
+            run_solver(inp)
+
+
+class TestInputValidation:
+    """Verify sample volume validation guards."""
+
+    def test_zero_undiluted_raises(self):
+        inp = TitrationInput(
+            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
+            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
+            titrant_normality=0.0728,
+            sample_volume_undiluted=0.0, sample_volume_diluted=50.0,
+            temperature=21.0, tds=3300.0,
+        )
+        with pytest.raises(ValueError, match="sample_volume_undiluted"):
+            run_solver(inp)
+
+    def test_negative_undiluted_raises(self):
+        inp = TitrationInput(
+            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
+            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
+            titrant_normality=0.0728,
+            sample_volume_undiluted=-10.0, sample_volume_diluted=50.0,
+            temperature=21.0, tds=3300.0,
+        )
+        with pytest.raises(ValueError, match="sample_volume_undiluted"):
+            run_solver(inp)
+
+    def test_zero_diluted_raises(self):
+        inp = TitrationInput(
+            ph0=7.36, ph1=6.75, ph2=5.95, ph3=5.18, ph4=4.29,
+            vx1=1.06, vx2=3.50, vx3=4.84, vx4=5.40,
+            titrant_normality=0.0728,
+            sample_volume_undiluted=10.0, sample_volume_diluted=0.0,
+            temperature=21.0, tds=3300.0,
+        )
+        with pytest.raises(ValueError, match="sample_volume_diluted"):
+            run_solver(inp)
