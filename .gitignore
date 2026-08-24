@@ -53,3 +53,7 @@ temp/
 # === Thesis Documents (if sensitive) ===
 # Uncomment to prevent committing thesis PDFs:
 # docs/thesis-reference/*.pdf
+
+# Virtual Environment
+venv/
+.venv/
