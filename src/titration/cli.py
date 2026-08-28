@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 
 from .constants import THESIS_DEFAULTS
@@ -30,6 +31,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tds", type=float, default=d.tds, help=f"total dissolved solids, mg/L (default: {d.tds})")
     p.add_argument("--inorganic-nitrogen", type=float, default=d.inorganic_nitrogen, help=f"inorganic nitrogen, mg/L as N (default: {d.inorganic_nitrogen})")
     p.add_argument("--inorganic-phosphorus", type=float, default=d.inorganic_phosphorus, help=f"inorganic phosphorus, mg/L as P (default: {d.inorganic_phosphorus})")
+    p.add_argument("--json", action="store_true", help="Output results as JSON instead of formatted text")
     return p
 
 
@@ -55,6 +57,36 @@ def _format_results(result) -> str:
     return "\n".join(lines)
 
 
+def _format_json(result, inp: TitrationInput) -> str:
+    """Convert results to JSON-friendly dictionary"""
+    return json.dumps({
+        "input": {
+            "ph_values": [inp.ph0, inp.ph1, inp.ph2, inp.ph3, inp.ph4],
+            "volumes_mL": [inp.vx1, inp.vx2, inp.vx3, inp.vx4],
+            "titrant_normality_eq_L": inp.titrant_normality,
+            "sample_volume_undiluted_mL": inp.sample_volume_undiluted,
+            "sample_volume_diluted_mL": inp.sample_volume_diluted,
+            "temperature_C": inp.temperature,
+            "tds_mg_L": inp.tds,
+            "inorganic_nitrogen_mg_L_as_N": inp.inorganic_nitrogen,
+            "inorganic_phosphorus_mg_L_as_P": inp.inorganic_phosphorus,
+        },
+        "results": {
+            "h2co3_alkalinity_mg_L_as_CaCO3": round(result.h2co3_alkalinity, 2),
+            "scfa_concentration_mg_L_as_acetic": round(max(result.scfa_concentration, 0), 2),
+            "systematic_ph_error": round(result.systematic_ph_error, 4),
+            "ct_values": [round(result.ct_values[0], 2), round(result.ct_values[1], 2)],
+            "at_values": [round(result.at_values[0], 2), round(result.at_values[1], 2)],
+            "convergence_status": result.convergence_status,
+        },
+        "metadata": {
+            "tool": "5-point-titration",
+            "version": "0.1.0",
+            "pascal_source": "Moosbrugger 1991 doctoral thesis",
+        },
+    }, indent=2)
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -78,12 +110,12 @@ def main(argv: list[str] | None = None) -> None:
         inorganic_phosphorus=args.inorganic_phosphorus,
     )
 
-    try:
-        result = run_titration(inp)
-    except ValueError as exc:
-        sys.stderr.write(f"titration: error: {exc}\n")
-        sys.exit(1)
-    sys.stdout.write(_format_results(result))
+    result = run_titration(inp)
+    
+    if args.json:
+        sys.stdout.write(_format_json(result, inp))
+    else:
+        sys.stdout.write(_format_results(result))
 
 
 if __name__ == "__main__":
